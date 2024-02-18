@@ -1,0 +1,36 @@
+[package]
+name = "sqlite-tiny"
+version = "0.1.0"
+edition = "2021"
+authors = ["KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>"]
+keywords = []
+categories = []
+description = "A minimalistic SQLite crate which ships the amalgamation variant and provides a tiny Rust API"
+license = "BSD-2-Clause OR MIT"
+repository = "https://github.com/KizzyCode/sqlite-tiny-rust"
+readme = "README.md"
+build = "build.rs"
+
+
+[badges]
+appveyor = { repository = "KizzyCode/sqlite-tiny-rust" }
+
+
+[features]
+default = ["api"]
+api = []
+
+
+[dependencies]
+
+[build-dependencies]
+cc = { version = "1.0.83", default-features = false }
+
+[dev-dependencies]
+
+
+[profile.release]
+overflow-checks = true
+
+[profile.bench]
+overflow-checks = true
