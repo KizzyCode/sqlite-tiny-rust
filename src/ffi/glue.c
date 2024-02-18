@@ -2,7 +2,7 @@
  * Some glue definitions for rust bindgen
  */
 
-#include "sqlite3.h"
+#include "../../dist/sqlite3.h"
 
 /**
  * @brief See SQLITE_TRANSIENT
