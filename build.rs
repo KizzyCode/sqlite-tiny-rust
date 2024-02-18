@@ -11,6 +11,7 @@ fn main() {
         //.flag("-DSQLITE_OMIT_SHARED_CACHE") -- causes warnings if enabled
         .flag("-DSQLITE_STRICT_SUBTYPE=1")
         // Build lib
+        .include("dist/")
         .file("dist/sqlite3.c")
         .file("src/ffi/glue.c")
         .compile("libsqlite3.a");
