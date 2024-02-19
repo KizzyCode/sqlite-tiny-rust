@@ -19,7 +19,7 @@ impl<'a> Statement<'a> {
     /// Binds a value
     ///
     /// # Important
-    /// Column indices for binding sadly start with `1`
+    /// Sadly, unless manually specified with `?NNN`, default column indices for binding start with `1` 😭
     pub fn bind<T>(&self, column: std::ffi::c_int, value: T) -> Result<(), Error>
     where
         SqliteType: TryFrom<T>,
