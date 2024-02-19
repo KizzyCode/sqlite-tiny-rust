@@ -25,7 +25,8 @@ Currently, SQLite is compiled with the following options:
 - `-DSQLITE_DQS=0`
 - `-DSQLITE_DEFAULT_MEMSTATUS=0`
 - `-DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1`
-- `-DSQLITE_OMIT_DEPRECATED`
+- `-DSQLITE_OMIT_DEPRECATED=1`
+- `-DSQLITE_OMIT_SHARED_CACHE=1`
 - `-DSQLITE_STRICT_SUBTYPE=1`
 
 See <https://www.sqlite.org/compile.html> and [the `build.rs`](../build.rs) for further information.
