@@ -57,6 +57,13 @@ impl Drop for Sqlite {
         unsafe { ffi::sqlite3_close(self.raw) };
     }
 }
+unsafe impl Send for Sqlite {
+    // This struct is safely send because:
+    //  - the underlying database is sync because SQLite guarantees so if the database is opened with
+    //    `SQLITE_OPEN_FULLMUTEX`
+    //  - the pointer itself is never mutated, and dropping is safe because this struct is no-`Copy`/no-`Clone`, so it
+    //    can only be dropped once and access in the destructor is exclusive
+}
 unsafe impl Sync for Sqlite {
     // This struct is safely sync because:
     //  - the underlying database is sync because SQLite guarantees so if the database is opened with
