@@ -1,5 +1,5 @@
 # SQLite
-This folder contains the unmodified [SQLite amalgamation 3.45.1 @2024-01-30](https://www.sqlite.org/download.html).
+This folder contains the unmodified [SQLite amalgamation 3.46.0 @2024-05-23](https://www.sqlite.org/download.html).
 
 ## Bindgen
 To regenerate the bindings after an update, call bindgen from the project's root directory:
