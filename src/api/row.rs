@@ -18,6 +18,21 @@ pub struct Row<'a, 'b> {
     pub(in crate::api) statement: &'a mut Statement<'b>,
 }
 impl Row<'_, '_> {
+    /// The amount of fields/columns in the current row
+    #[allow(clippy::missing_panics_doc)]
+    pub fn len(&self) -> usize {
+        let columns = unsafe { ffi::sqlite3_data_count(self.statement.raw) };
+        // Note: If the amount of columns is greater than `usize::MAX` or an `core::ffi::c_int` is greater than
+        //  `usize::MAX`, something is super weird here and we want to panic
+        #[allow(clippy::expect_used)]
+        usize::try_from(columns).expect("amount of columns is greater than `usize::MAX`")
+    }
+    /// Whether the current row contains some fields/columns or not
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Reads the value for the requested column
     ///
     /// # Note
