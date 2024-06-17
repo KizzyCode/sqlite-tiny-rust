@@ -1,26 +1,26 @@
-//! An SQLite statement
+//! An SQLite query
 
 use crate::{
-    api::{row::Row, sqlite::Sqlite, types::SqliteType},
+    api::{row::ResultRow, sqlite::Sqlite, types::SqliteType},
     error,
     error::Error,
     ffi,
 };
 
-/// An SQLite statement
+/// An SQLite query
 #[derive(Debug)]
-pub struct Statement<'a> {
+pub struct Query<'a> {
     /// The database
     pub(in crate::api) sqlite: &'a Sqlite,
     /// The statement
     pub(in crate::api) raw: *mut ffi::sqlite3_stmt,
 }
-impl<'a> Statement<'a> {
+impl<'a> Query<'a> {
     /// Binds a value
     ///
     /// # Important
     /// Sadly, unless manually specified with `?NNN`, default column indices for binding start with `1` 😭
-    pub fn bind<T>(&self, column: std::ffi::c_int, value: T) -> Result<(), Error>
+    pub fn bind<T>(self, column: std::ffi::c_int, value: T) -> Result<Self, Error>
     where
         SqliteType: TryFrom<T>,
         <SqliteType as TryFrom<T>>::Error: std::error::Error + Send + 'static,
@@ -29,12 +29,13 @@ impl<'a> Statement<'a> {
         let value =
             SqliteType::try_from(value).map_err(|e| error!(with: e, "Failed to convert value into SQLite type"))?;
         match value {
-            SqliteType::Null => self.bind_null(column),
-            SqliteType::Integer(value) => self.bind_integer(column, value),
-            SqliteType::Real(value) => self.bind_real(column, value),
-            SqliteType::Text(value) => self.bind_text(column, value),
-            SqliteType::Blob(value) => self.bind_blob(column, value),
+            SqliteType::Null => self.bind_null(column)?,
+            SqliteType::Integer(value) => self.bind_integer(column, value)?,
+            SqliteType::Real(value) => self.bind_real(column, value)?,
+            SqliteType::Text(value) => self.bind_text(column, value)?,
+            SqliteType::Blob(value) => self.bind_blob(column, value)?,
         }
+        Ok(self)
     }
     /// Binds a NULL value
     fn bind_null(&self, column: std::ffi::c_int) -> Result<(), Error> {
@@ -75,27 +76,14 @@ impl<'a> Statement<'a> {
         unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
     }
 
-    /// Executes the statement and gets the next result row if any
-    pub fn step(&mut self) -> Result<Option<Row<'_, 'a>>, Error> {
-        // Validate retval
-        let retval = unsafe { ffi::sqlite3_step(self.raw) };
-        if let ffi::SQLITE_ROW = retval {
-            // Return row
-            Ok(Some(Row { statement: self }))
-        } else if let ffi::SQLITE_DONE = retval {
-            // Return none
-            Ok(None)
-        } else {
-            // Get the error
-            let error = unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) };
-            match error {
-                Ok(_) => Err(error!("Unknown result code for SQLite step: {retval}")),
-                Err(e) => Err(e),
-            }
-        }
+    /// Executes the query and gets the next result row if any
+    pub fn execute(self) -> Result<Option<ResultRow<'a>>, Error> {
+        // Create the row handle and advance the query
+        let rows = ResultRow { query: self };
+        rows.next()
     }
 }
-impl<'a> Drop for Statement<'a> {
+impl<'a> Drop for Query<'a> {
     fn drop(&mut self) {
         // Destroy statement
         unsafe { ffi::sqlite3_finalize(self.raw) };

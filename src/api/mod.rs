@@ -4,4 +4,4 @@
 pub mod row;
 pub mod sqlite;
 pub mod types;
-pub mod statement;
+pub mod query;

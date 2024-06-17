@@ -1,27 +1,24 @@
 //! An SQLite result row
 
 use crate::{
-    api::{statement::Statement, types::SqliteType},
+    api::{query::Query, types::SqliteType},
     error,
     error::Error,
     ffi,
 };
 use std::ffi::CStr;
 
-/// A statement result row
+/// An SQLite result row
 #[derive(Debug)]
-pub struct Row<'a, 'b> {
-    /// The underlying statement
-    ///
-    /// # Note
-    /// We reference the statement as `&mut` here to ensure it is not modified while we access the current row
-    pub(in crate::api) statement: &'a mut Statement<'b>,
+pub struct ResultRow<'a> {
+    /// The database
+    pub(in crate::api) query: Query<'a>,
 }
-impl Row<'_, '_> {
+impl ResultRow<'_> {
     /// The amount of fields/columns in the current row
     #[allow(clippy::missing_panics_doc)]
     pub fn len(&self) -> usize {
-        let columns = unsafe { ffi::sqlite3_data_count(self.statement.raw) };
+        let columns = unsafe { ffi::sqlite3_data_count(self.query.raw) };
         // Note: If the amount of columns is greater than `usize::MAX` or an `core::ffi::c_int` is greater than
         //  `usize::MAX`, something is super weird here and we want to panic
         #[allow(clippy::expect_used)]
@@ -33,7 +30,7 @@ impl Row<'_, '_> {
         self.len() == 0
     }
 
-    /// Reads the value for the requested column
+    /// Reads the value for the requested column from the current row
     ///
     /// # Note
     /// Column indices for reading start with `0`
@@ -43,7 +40,7 @@ impl Row<'_, '_> {
         <SqliteType as TryInto<T>>::Error: std::error::Error + Send + 'static,
     {
         // Get the type and read the value as said type
-        let type_ = unsafe { ffi::sqlite3_column_type(self.statement.raw, column) };
+        let type_ = unsafe { ffi::sqlite3_column_type(self.query.raw, column) };
         let value = match type_ {
             ffi::SQLITE_NULL => SqliteType::Null,
             ffi::SQLITE_INTEGER => self.read_integer(column)?,
@@ -58,18 +55,18 @@ impl Row<'_, '_> {
     }
     /// Reads an INTEGER value from the given column
     fn read_integer(&self, column: std::ffi::c_int) -> Result<SqliteType, Error> {
-        let value = unsafe { ffi::sqlite3_column_int64(self.statement.raw, column) };
+        let value = unsafe { ffi::sqlite3_column_int64(self.query.raw, column) };
         Ok(SqliteType::Integer(value))
     }
     /// Reads a REAL value from the given column
     fn read_real(&self, column: std::ffi::c_int) -> Result<SqliteType, Error> {
-        let value = unsafe { ffi::sqlite3_column_double(self.statement.raw, column) };
+        let value = unsafe { ffi::sqlite3_column_double(self.query.raw, column) };
         Ok(SqliteType::Real(value))
     }
     /// Reads a TEXT value from the given column
     fn read_text(&self, column: std::ffi::c_int) -> Result<SqliteType, Error> {
         // Get text value
-        let chars = unsafe { ffi::sqlite3_column_text(self.statement.raw, column) };
+        let chars = unsafe { ffi::sqlite3_column_text(self.query.raw, column) };
         let text = unsafe { CStr::from_ptr(chars as _) };
 
         // Get rust string
@@ -79,15 +76,35 @@ impl Row<'_, '_> {
     /// Reads a BLOB value from the given column
     fn read_blob(&self, column: std::ffi::c_int) -> Result<SqliteType, Error> {
         // Get blob value
-        let data = unsafe { ffi::sqlite3_column_blob(self.statement.raw, column) };
+        let data = unsafe { ffi::sqlite3_column_blob(self.query.raw, column) };
         let false = data.is_null() else {
             // SQLite has a "special" way of handling empty blobs
             return Ok(SqliteType::Blob(Vec::new()));
         };
 
         // Get blob length and copy bytes
-        let len = unsafe { ffi::sqlite3_column_bytes(self.statement.raw, column) };
+        let len = unsafe { ffi::sqlite3_column_bytes(self.query.raw, column) };
         let bytes = unsafe { std::slice::from_raw_parts(data as *const u8, len as usize) };
         Ok(SqliteType::Blob(bytes.to_vec()))
+    }
+
+    /// Advances the result to the next row
+    pub fn next(self) -> Result<Option<Self>, Error> {
+        // Do a step
+        let retval = unsafe { ffi::sqlite3_step(self.query.raw) };
+        if let ffi::SQLITE_ROW = retval {
+            // Return row
+            Ok(Some(self))
+        } else if let ffi::SQLITE_DONE = retval {
+            // Return none
+            Ok(None)
+        } else {
+            // Get the error
+            let error = unsafe { ffi::sqlite3_check_result(retval, self.query.sqlite.raw) };
+            match error {
+                Ok(_) => Err(error!("Unknown result code for SQLite step: {retval}")),
+                Err(e) => Err(e),
+            }
+        }
     }
 }
