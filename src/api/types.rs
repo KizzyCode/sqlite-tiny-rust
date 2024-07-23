@@ -1,6 +1,6 @@
 //! A bridging type to convert between native Rust and SQLite data types
 
-use crate::{error, error::Error};
+use crate::{err, error::Error};
 
 /// An SQLite convertible type
 #[derive(Debug, Clone, PartialEq)]
@@ -24,8 +24,8 @@ macro_rules! impl_sqlitetype_conversion {
             fn try_into(self) -> Result<$type, Self::Error> {
                 match self {
                     $variant(value) => <$type>::try_from(value)
-                        .map_err(|e| error!(with: e, "Failed to from SQLite type")),
-                    _ => Err(error!("Failed to convert from SQLite type"))
+                        .map_err(|e| err!(with: e, "Failed to from SQLite type")),
+                    _ => Err(err!("Failed to convert from SQLite type"))
                 }
             }
         }
@@ -36,8 +36,8 @@ macro_rules! impl_sqlitetype_conversion {
                 match self {
                     Self::Null => Ok(None),
                     $variant(value) => <$type>::try_from(value)
-                        .map(Some).map_err(|e| error!(with: e, "Failed to from SQLite type")),
-                    _ => Err(error!("Failed to convert from SQLite type"))
+                        .map(Some).map_err(|e| err!(with: e, "Failed to from SQLite type")),
+                    _ => Err(err!("Failed to convert from SQLite type"))
                 }
             }
         }
@@ -48,7 +48,7 @@ macro_rules! impl_sqlitetype_conversion {
 
             fn try_from(value: $type) -> Result<Self, Self::Error> {
                 <$intermediate>::try_from(value)
-                    .map($variant).map_err(|e| error!(with: e, "Failed to convert into SQLite type"))
+                    .map($variant).map_err(|e| err!(with: e, "Failed to convert into SQLite type"))
             }
         }
         impl TryFrom<Option<$type>> for SqliteType {
@@ -58,7 +58,7 @@ macro_rules! impl_sqlitetype_conversion {
                 match value {
                     None => Ok(Self::Null),
                     Some(value) => <$intermediate>::try_from(value)
-                        .map($variant).map_err(|e| error!(with: e, "Failed to convert into SQLite type")),
+                        .map($variant).map_err(|e| err!(with: e, "Failed to convert into SQLite type")),
                 }
             }
         }

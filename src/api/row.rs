@@ -2,19 +2,22 @@
 
 use crate::{
     api::{query::Query, types::SqliteType},
-    error,
+    err,
     error::Error,
     ffi,
 };
-use std::ffi::CStr;
+use std::ffi::{c_int, CStr};
 
 /// An SQLite result row
 #[derive(Debug)]
-pub struct ResultRow<'a> {
-    /// The database
+pub struct Row<'a> {
+    /// The underlying query
+    ///
+    /// # Important
+    /// The underlying statement allows interior mutability, so handle with care.
     pub(in crate::api) query: Query<'a>,
 }
-impl ResultRow<'_> {
+impl Row<'_> {
     /// The amount of fields/columns in the current row
     #[allow(clippy::missing_panics_doc)]
     pub fn len(&self) -> usize {
@@ -47,11 +50,11 @@ impl ResultRow<'_> {
             ffi::SQLITE_FLOAT => self.read_real(column)?,
             ffi::SQLITE_TEXT => self.read_text(column)?,
             ffi::SQLITE_BLOB => self.read_blob(column)?,
-            _ => return Err(error!("Unknown SQLite column type: {type_}")),
+            _ => return Err(err!("Unknown SQLite column type: {type_}")),
         };
 
         // Convert value into requested type
-        value.try_into().map_err(|e| error!(with: e, "Failed to load from SQLite type"))
+        value.try_into().map_err(|e| err!(with: e, "Failed to load from SQLite type"))
     }
     /// Reads an INTEGER value from the given column
     fn read_integer(&self, column: std::ffi::c_int) -> Result<SqliteType, Error> {
@@ -70,7 +73,7 @@ impl ResultRow<'_> {
         let text = unsafe { CStr::from_ptr(chars as _) };
 
         // Get rust string
-        let text = text.to_str().map_err(|e| error!(with: e, "SQLite string is not valid UTF-8"))?;
+        let text = text.to_str().map_err(|e| err!(with: e, "SQLite string is not valid UTF-8"))?;
         Ok(SqliteType::Text(text.to_string()))
     }
     /// Reads a BLOB value from the given column
@@ -88,23 +91,22 @@ impl ResultRow<'_> {
         Ok(SqliteType::Blob(bytes.to_vec()))
     }
 
-    /// Advances the result to the next row
-    pub fn next(self) -> Result<Option<Self>, Error> {
+    /// Advances the underlying statement towards the first or subsequent row
+    pub(in crate::api) fn step(&self) -> Result<c_int, Error> {
         // Do a step
         let retval = unsafe { ffi::sqlite3_step(self.query.raw) };
-        if let ffi::SQLITE_ROW = retval {
-            // Return row
-            Ok(Some(self))
-        } else if let ffi::SQLITE_DONE = retval {
-            // Return none
-            Ok(None)
-        } else {
-            // Get the error
-            let error = unsafe { ffi::sqlite3_check_result(retval, self.query.sqlite.raw) };
-            match error {
-                Ok(_) => Err(error!("Unknown result code for SQLite step: {retval}")),
-                Err(e) => Err(e),
-            }
+        match retval {
+            ffi::SQLITE_ROW | ffi::SQLITE_DONE => Ok(retval),
+            _ => Err(self.last_error(retval)),
+        }
+    }
+    /// Gets the last error of the underlying state
+    pub(in crate::api) fn last_error(&self, code: c_int) -> Error {
+        // Get the error
+        let error = unsafe { ffi::sqlite3_check_result(code, self.query.sqlite.raw) };
+        match error {
+            Ok(_) => err!("Unknown result code for SQLite step: {code}"),
+            Err(e) => e,
         }
     }
 }
