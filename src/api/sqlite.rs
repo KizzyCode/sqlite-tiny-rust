@@ -1,6 +1,6 @@
 //! An SQLite database handle
 
-use crate::{api::query::Query, error, error::Error, ffi};
+use crate::{api::query::Query, err, error::Error, ffi};
 use std::{ffi::CString, ptr};
 
 /// An SQLite database handle
@@ -25,7 +25,7 @@ impl Sqlite {
     /// provided flags.
     pub fn raw(location: &str, flags: std::ffi::c_int) -> Result<Self, Error> {
         // Prepare path and database pointer
-        let path = CString::new(location).map_err(|e| error!(with: e, "Invalid database location"))?;
+        let path = CString::new(location).map_err(|e| err!(with: e, "Invalid database location"))?;
         let mut database = ptr::null_mut();
 
         // Open the database
@@ -40,14 +40,14 @@ impl Sqlite {
     /// Creates a new query
     pub fn query(&self, query: &str) -> Result<Query, Error> {
         // Prepare query and statement pointer
-        let query = CString::new(query).map_err(|e| error!(with: e, "Invalid database query"))?;
+        let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
         let mut statement = ptr::null_mut();
 
         // Prepare statement and check result code
         let retval = unsafe { ffi::sqlite3_prepare_v2(self.raw, query.as_ptr(), -1, &mut statement, ptr::null_mut()) };
         unsafe { ffi::sqlite3_check_result(retval, self.raw) }?;
 
-        // Init statement
+        // Init query
         Ok(Query { sqlite: self, raw: statement })
     }
 }

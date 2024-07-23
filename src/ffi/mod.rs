@@ -43,7 +43,7 @@ pub unsafe fn sqlite3_check_result(retval: i32, database: *mut sqlite3) -> Resul
         let message_ = CStr::from_ptr(error).to_string_lossy();
         message = Cow::Owned(format!("{message} ({message_})"));
     }
-    Err(crate::error!("SQLite error: {message}"))
+    Err(crate::err!("SQLite error: {message}"))
 }
 
 /// Asserts that sqlite is compiled threadsafe

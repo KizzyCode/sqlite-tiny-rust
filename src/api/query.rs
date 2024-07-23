@@ -1,11 +1,12 @@
 //! An SQLite query
 
 use crate::{
-    api::{row::ResultRow, sqlite::Sqlite, types::SqliteType},
-    error,
+    api::{row::Row, types::SqliteType},
+    err,
     error::Error,
-    ffi,
+    ffi, Sqlite,
 };
+use std::ffi::c_int;
 
 /// An SQLite query
 #[derive(Debug)]
@@ -27,7 +28,7 @@ impl<'a> Query<'a> {
     {
         // Create intermediate value and bind it
         let value =
-            SqliteType::try_from(value).map_err(|e| error!(with: e, "Failed to convert value into SQLite type"))?;
+            SqliteType::try_from(value).map_err(|e| err!(with: e, "Failed to convert value into SQLite type"))?;
         match value {
             SqliteType::Null => self.bind_null(column)?,
             SqliteType::Integer(value) => self.bind_integer(column, value)?,
@@ -77,15 +78,49 @@ impl<'a> Query<'a> {
     }
 
     /// Executes the query and gets the next result row if any
-    pub fn execute(self) -> Result<Option<ResultRow<'a>>, Error> {
-        // Create the row handle and advance the query
-        let rows = ResultRow { query: self };
-        rows.next()
+    #[allow(clippy::missing_panics_doc)]
+    pub fn execute(self) -> Result<QueryResult<'a>, Error> {
+        // Create a row view over the current query and do the first `step` to execute it
+        let row = Row { query: self };
+        let row_state = row.step()?;
+
+        // Initialize the result struct
+        Ok(QueryResult { row, row_preflighted: true, row_state })
     }
 }
-impl<'a> Drop for Query<'a> {
-    fn drop(&mut self) {
-        // Destroy statement
-        unsafe { ffi::sqlite3_finalize(self.raw) };
+
+/// A query result
+#[derive(Debug)]
+pub struct QueryResult<'a> {
+    /// A row view over the underlying statement
+    pub(in crate::api) row: Row<'a>,
+    /// Whether the next row has already been preflighted or needs to be fetched
+    pub(in crate::api) row_preflighted: bool,
+    /// A slot to hold the result state of the associated row view
+    pub(in crate::api) row_state: c_int,
+}
+impl<'a> QueryResult<'a> {
+    /// Gets the current pending result row
+    pub fn row(self) -> Option<Row<'a>> {
+        match self.row_state {
+            ffi::SQLITE_ROW => Some(self.row),
+            _ => None,
+        }
+    }
+
+    /// Returns the next row like a fallible iterator
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Result<Option<&Row<'a>>, Error> {
+        // Fetch the next row if necessary
+        match self.row_preflighted {
+            true => self.row_preflighted = false,
+            false => self.row_state = self.row.step()?,
+        }
+
+        // Validate the current state
+        match self.row_state {
+            ffi::SQLITE_ROW => Ok(Some(&self.row)),
+            _ => Ok(None),
+        }
     }
 }

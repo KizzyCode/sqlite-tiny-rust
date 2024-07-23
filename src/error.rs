@@ -7,7 +7,7 @@ use std::{
 
 /// Creates a new error
 #[macro_export]
-macro_rules! error {
+macro_rules! err {
     (with: $error:expr, $($arg:tt)*) => {{
         let error = format!($($arg)*);
         let source = Box::new($error);
