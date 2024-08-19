@@ -100,11 +100,11 @@ pub struct QueryResult<'a> {
     pub(in crate::api) row_state: c_int,
 }
 impl<'a> QueryResult<'a> {
-    /// Gets the current pending result row
-    pub fn row(self) -> Option<Row<'a>> {
+    /// Gets the current pending result row or returns an error if there is no row
+    pub fn row(self) -> Result<Row<'a>, Error> {
         match self.row_state {
-            ffi::SQLITE_ROW => Some(self.row),
-            _ => None,
+            ffi::SQLITE_ROW => Ok(self.row),
+            _ => Err(err!("No result row available")),
         }
     }
 

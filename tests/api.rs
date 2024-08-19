@@ -29,7 +29,7 @@ fn success() {
 
     // Initialize database with schema
     let row = statement.execute().map(|result| result.row()).expect("failed to initialize test database");
-    assert!(row.is_none());
+    assert!(row.is_err());
 
     // Insert row
     const INSERT_QUERY: &str = r#"
@@ -48,7 +48,7 @@ fn success() {
         .and_then(|query| query.execute())
         .map(|result| result.row())
         .expect("failed to execute query");
-    assert!(row.is_none());
+    assert!(row.is_err());
 
     // Read row back
     const SELECT_QUERY: &str = "SELECT * FROM test";
