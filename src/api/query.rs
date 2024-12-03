@@ -78,7 +78,6 @@ impl<'a> Query<'a> {
     }
 
     /// Executes the query and gets the next result row if any
-    #[allow(clippy::missing_panics_doc)]
     pub fn execute(self) -> Result<QueryResult<'a>, Error> {
         // Create a row view over the current query and do the first `step` to execute it
         let row = Row { query: self };
@@ -109,7 +108,7 @@ impl<'a> QueryResult<'a> {
     }
 
     /// Returns the next row like a fallible iterator
-    #[allow(clippy::should_implement_trait)]
+    #[allow(clippy::should_implement_trait, reason = "The similarity to the trait is intended")]
     pub fn next(&mut self) -> Result<Option<&Row<'a>>, Error> {
         // Fetch the next row if necessary
         match self.row_preflighted {

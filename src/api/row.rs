@@ -19,12 +19,12 @@ pub struct Row<'a> {
 }
 impl Row<'_> {
     /// The amount of fields/columns in the current row
-    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::missing_panics_doc, reason = "Panic should never occur during normal operation")]
     pub fn len(&self) -> usize {
         let columns = unsafe { ffi::sqlite3_data_count(self.query.raw) };
         // Note: If the amount of columns is greater than `usize::MAX` or an `core::ffi::c_int` is greater than
         //  `usize::MAX`, something is super weird here and we want to panic
-        #[allow(clippy::expect_used)]
+        #[allow(clippy::expect_used, reason = "Panic should never occur during normal operation")]
         usize::try_from(columns).expect("amount of columns is greater than `usize::MAX`")
     }
     /// Whether the current row contains some fields/columns or not

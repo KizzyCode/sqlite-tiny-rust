@@ -56,7 +56,7 @@ impl Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         // Do some type gymnastics to get the `Send` out of the typesystem, because it breaks a direct conversion
-        #[allow(clippy::borrowed_box)]
+        #[allow(clippy::borrowed_box, reason = "Type gymnastics to remove the `Send`")]
         let source: &Box<dyn std::error::Error + Send> = self.source.as_ref()?;
         let source: &dyn std::error::Error = source.as_ref();
         Some(source)
