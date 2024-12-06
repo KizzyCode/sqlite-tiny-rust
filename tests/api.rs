@@ -70,7 +70,7 @@ fn success() {
     assert_eq!(row.read::<Option<Vec<u8>>>(8).expect("failed to read optional bytevec"), Some(b"tESTOLOPE".to_vec()));
 
     // Insert two other rows
-    const INSERT_QUERY_2: &str = "INSERT INTO test (req_text) VALUES ('Testolope')";
+    const INSERT_QUERY_2: &str = "INSERT INTO test (req_text) VALUES ('tESTOLOPE')";
     database.query(INSERT_QUERY_2).and_then(|query| query.execute()).expect("failed to execute query");
     database.query(INSERT_QUERY_2).and_then(|query| query.execute()).expect("failed to execute query");
 
@@ -87,4 +87,22 @@ fn success() {
         assert_eq!(id, index);
         index += 1;
     }
+
+    // Batch execute statement
+    const DROP_QUERY: &str = r#"
+        BEGIN;
+        DELETE FROM test WHERE req_integer = 4;
+        DELETE FROM test WHERE req_text = 'tESTOLOPE';
+        COMMIT;
+    "#;
+    database.exec(DROP_QUERY).expect("failed to drop tables");
+
+    // Ensure database is empty
+    const COUNT_QUERY: &str = "SELECT COUNT(id) FROM test";
+    let row = (database.query(COUNT_QUERY))
+        .and_then(|query| query.execute())
+        .map(|result| result.row())
+        .expect("failed to read from test database")
+        .expect("missing expected result");
+    assert_eq!(row.read::<i32>(0).expect("failed to read row count"), 0);
 }

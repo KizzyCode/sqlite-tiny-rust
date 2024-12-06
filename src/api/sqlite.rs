@@ -37,7 +37,7 @@ impl Sqlite {
         Ok(Self { raw: database })
     }
 
-    /// Creates a new query
+    /// Creates a new query from a **single** SQL statement
     pub fn query(&self, query: &str) -> Result<Query, Error> {
         // Prepare query and statement pointer
         let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
@@ -49,6 +49,17 @@ impl Sqlite {
 
         // Init query
         Ok(Query { sqlite: self, raw: statement })
+    }
+
+    /// Executes one or more SQL queries
+    pub fn exec(&self, query: &str) -> Result<(), Error> {
+        // Prepare query and statement pointer
+        let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
+        let retval = unsafe { ffi::sqlite3_exec(self.raw, query.as_ptr(), None, ptr::null_mut(), ptr::null_mut()) };
+        unsafe { ffi::sqlite3_check_result(retval, self.raw) }?;
+
+        // Apparently, the query was successful
+        Ok(())
     }
 }
 impl Drop for Sqlite {
