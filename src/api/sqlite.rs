@@ -1,13 +1,18 @@
 //! An SQLite database handle
 
-use crate::{api::query::Query, err, error::Error, ffi};
+use crate::{
+    api::{query::Query, types::PointerMut},
+    err,
+    error::Error,
+    ffi,
+};
 use std::{ffi::CString, ptr};
 
 /// An SQLite database handle
 #[derive(Debug)]
 pub struct Sqlite {
     /// The database handle
-    pub(in crate::api) raw: *mut ffi::sqlite3,
+    pub(in crate::api) raw: PointerMut<ffi::sqlite3>,
 }
 impl Sqlite {
     /// Opens or creates an SQLite 3 database for reading and writing
@@ -34,6 +39,7 @@ impl Sqlite {
         unsafe { ffi::sqlite3_check_result(retval, ptr::null_mut()) }?;
 
         // Init self
+        let database = PointerMut::new(database, ffi::sqlite3_close_v2);
         Ok(Self { raw: database })
     }
 
@@ -44,28 +50,25 @@ impl Sqlite {
         let mut statement = ptr::null_mut();
 
         // Prepare statement and check result code
-        let retval = unsafe { ffi::sqlite3_prepare_v2(self.raw, query.as_ptr(), -1, &mut statement, ptr::null_mut()) };
-        unsafe { ffi::sqlite3_check_result(retval, self.raw) }?;
+        let retval =
+            unsafe { ffi::sqlite3_prepare_v2(self.raw.as_ptr(), query.as_ptr(), -1, &mut statement, ptr::null_mut()) };
+        unsafe { ffi::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
 
         // Init query
+        let statement = PointerMut::new(statement, ffi::sqlite3_finalize);
         Ok(Query { sqlite: self, raw: statement })
     }
 
     /// Executes one or more SQL queries
-    pub fn exec(&self, query: &str) -> Result<(), Error> {
+    pub fn execute(&self, query: &str) -> Result<(), Error> {
         // Prepare query and statement pointer
         let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
-        let retval = unsafe { ffi::sqlite3_exec(self.raw, query.as_ptr(), None, ptr::null_mut(), ptr::null_mut()) };
-        unsafe { ffi::sqlite3_check_result(retval, self.raw) }?;
+        let retval =
+            unsafe { ffi::sqlite3_exec(self.raw.as_ptr(), query.as_ptr(), None, ptr::null_mut(), ptr::null_mut()) };
+        unsafe { ffi::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
 
         // Apparently, the query was successful
         Ok(())
-    }
-}
-impl Drop for Sqlite {
-    fn drop(&mut self) {
-        // Close database
-        unsafe { ffi::sqlite3_close(self.raw) };
     }
 }
 unsafe impl Send for Sqlite {

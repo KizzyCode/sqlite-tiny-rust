@@ -1,6 +1,7 @@
-//! A bridging type to convert between native Rust and SQLite data types
+//! Bridge types to help with C and SQLite data types
 
 use crate::{err, error::Error};
+use core::ffi::c_int;
 
 /// An SQLite convertible type
 #[derive(Debug, Clone, PartialEq)]
@@ -86,3 +87,51 @@ impl_sqlitetype_conversion!(String => String => SqliteType::Text);
 impl_sqlitetype_conversion!(into: &str => String => SqliteType::Text);
 impl_sqlitetype_conversion!(Vec<u8> => Vec<u8> => SqliteType::Blob);
 impl_sqlitetype_conversion!(into: &[u8] => Vec<u8> => SqliteType::Blob);
+
+/// An "owned", mutable pointer
+#[derive(Debug)]
+pub struct PointerMut<T> {
+    /// The underlying raw pointer
+    ptr: *mut T,
+    /// An optional callback that is called on drop
+    on_drop: unsafe extern "C" fn(*mut T) -> c_int,
+}
+impl<T> PointerMut<T> {
+    /// Creates a new owned pointer
+    ///
+    /// # Panics
+    /// This function panics if the given pointer is `NULL`.
+    pub fn new(ptr: *mut T, on_drop: unsafe extern "C" fn(*mut T) -> c_int) -> Self {
+        assert!(!ptr.is_null(), "cannot create an owned NULL pointer");
+        Self { ptr, on_drop }
+    }
+
+    /// Returns the underlying pointer
+    pub const fn as_ptr(&self) -> *mut T {
+        self.ptr
+    }
+}
+impl<T> Drop for PointerMut<T> {
+    fn drop(&mut self) {
+        // Call the on-drop callback
+        unsafe { (self.on_drop)(self.ptr) };
+    }
+}
+
+/// A pointer with flexible ownership
+#[derive(Debug)]
+pub enum PointerMutFlex<'a, T> {
+    /// A borrowed pointer
+    Borrowed(&'a mut PointerMut<T>),
+    /// An owned pointer
+    Owned(PointerMut<T>),
+}
+impl<T> PointerMutFlex<'_, T> {
+    /// Returns the underlying pointer
+    pub const fn as_ptr(&self) -> *mut T {
+        match self {
+            PointerMutFlex::Borrowed(pointer_ref) => pointer_ref.as_ptr(),
+            PointerMutFlex::Owned(pointer_mut) => pointer_mut.as_ptr(),
+        }
+    }
+}

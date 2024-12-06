@@ -1,22 +1,21 @@
 //! An SQLite query
 
 use crate::{
-    api::{row::Row, types::SqliteType},
+    api::{answer::Answer, types::PointerMut, types::SqliteType},
     err,
     error::Error,
     ffi, Sqlite,
 };
-use std::ffi::c_int;
 
 /// An SQLite query
 #[derive(Debug)]
-pub struct Query<'a> {
+pub struct Query<'db> {
     /// The database
-    pub(in crate::api) sqlite: &'a Sqlite,
+    pub(in crate::api) sqlite: &'db Sqlite,
     /// The statement
-    pub(in crate::api) raw: *mut ffi::sqlite3_stmt,
+    pub(in crate::api) raw: PointerMut<ffi::sqlite3_stmt>,
 }
-impl<'a> Query<'a> {
+impl<'db> Query<'db> {
     /// Binds a value
     ///
     /// # Important
@@ -40,25 +39,25 @@ impl<'a> Query<'a> {
     }
     /// Binds a NULL value
     fn bind_null(&self, column: std::ffi::c_int) -> Result<(), Error> {
-        let retval = unsafe { ffi::sqlite3_bind_null(self.raw, column) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
+        let retval = unsafe { ffi::sqlite3_bind_null(self.raw.as_ptr(), column) };
+        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds an INTEGER value
     fn bind_integer(&self, column: std::ffi::c_int, value: i64) -> Result<(), Error> {
-        let retval = unsafe { ffi::sqlite3_bind_int64(self.raw, column, value) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
+        let retval = unsafe { ffi::sqlite3_bind_int64(self.raw.as_ptr(), column, value) };
+        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a REAL value
     fn bind_real(&self, column: std::ffi::c_int, value: f64) -> Result<(), Error> {
-        let retval = unsafe { ffi::sqlite3_bind_double(self.raw, column, value) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
+        let retval = unsafe { ffi::sqlite3_bind_double(self.raw.as_ptr(), column, value) };
+        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a TEXT value
     fn bind_text(&self, column: std::ffi::c_int, value: String) -> Result<(), Error> {
         let retval = unsafe {
             // Bind the text value and instruct SQLite to immediately copy the value
             ffi::sqlite3_bind_text64(
-                self.raw,
+                self.raw.as_ptr(),
                 column,
                 value.as_ptr() as _,
                 value.len() as _,
@@ -66,60 +65,30 @@ impl<'a> Query<'a> {
                 ffi::SQLITE_UTF8 as _,
             )
         };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
+        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a BLOB value
     fn bind_blob(&self, column: std::ffi::c_int, value: Vec<u8>) -> Result<(), Error> {
         let retval = unsafe {
             // Bind the blob value and instruct SQLite to immediately copy the value
-            ffi::sqlite3_bind_blob64(self.raw, column, value.as_ptr() as _, value.len() as _, ffi::sqlite3_transient())
+            ffi::sqlite3_bind_blob64(
+                self.raw.as_ptr(),
+                column,
+                value.as_ptr() as _,
+                value.len() as _,
+                ffi::sqlite3_transient(),
+            )
         };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw) }
+        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
 
     /// Executes the query and gets the next result row if any
-    pub fn execute(self) -> Result<QueryResult<'a>, Error> {
-        // Create a row view over the current query and do the first `step` to execute it
-        let row = Row { query: self };
-        let row_state = row.step()?;
+    pub fn execute(self) -> Result<Answer<'db>, Error> {
+        // Create the result object and do a step to make sure the query is actually executed
+        let mut result = Answer { sqlite: self.sqlite, raw: self.raw, has_row: false };
+        result.step()?;
 
         // Initialize the result struct
-        Ok(QueryResult { row, row_preflighted: true, row_state })
-    }
-}
-
-/// A query result
-#[derive(Debug)]
-pub struct QueryResult<'a> {
-    /// A row view over the underlying statement
-    pub(in crate::api) row: Row<'a>,
-    /// Whether the next row has already been preflighted or needs to be fetched
-    pub(in crate::api) row_preflighted: bool,
-    /// A slot to hold the result state of the associated row view
-    pub(in crate::api) row_state: c_int,
-}
-impl<'a> QueryResult<'a> {
-    /// Gets the current pending result row or returns an error if there is no row
-    pub fn row(self) -> Result<Row<'a>, Error> {
-        match self.row_state {
-            ffi::SQLITE_ROW => Ok(self.row),
-            _ => Err(err!("No result row available")),
-        }
-    }
-
-    /// Returns the next row like a fallible iterator
-    #[allow(clippy::should_implement_trait, reason = "The similarity to the trait is intended")]
-    pub fn next(&mut self) -> Result<Option<&Row<'a>>, Error> {
-        // Fetch the next row if necessary
-        match self.row_preflighted {
-            true => self.row_preflighted = false,
-            false => self.row_state = self.row.step()?,
-        }
-
-        // Validate the current state
-        match self.row_state {
-            ffi::SQLITE_ROW => Ok(Some(&self.row)),
-            _ => Ok(None),
-        }
+        Ok(result)
     }
 }

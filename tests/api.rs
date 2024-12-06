@@ -81,7 +81,7 @@ fn success() {
 
     // Validate IDs
     let mut index = 1;
-    while let Some(row) = result.next().expect("failed to read row from test database") {
+    while let Some(row) = result.next_row().expect("failed to read row from test database") {
         // Validate ID
         let id = row.read::<usize>(0).expect("failed to read ID");
         assert_eq!(id, index);
@@ -95,7 +95,7 @@ fn success() {
         DELETE FROM test WHERE req_text = 'tESTOLOPE';
         COMMIT;
     "#;
-    database.exec(DROP_QUERY).expect("failed to drop tables");
+    database.execute(DROP_QUERY).expect("failed to drop tables");
 
     // Ensure database is empty
     const COUNT_QUERY: &str = "SELECT COUNT(id) FROM test";

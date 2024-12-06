@@ -2,6 +2,7 @@
 #![cfg(feature = "api")]
 
 pub mod query;
+pub mod answer;
 pub mod row;
 pub mod sqlite;
 pub mod types;

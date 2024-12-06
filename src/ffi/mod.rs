@@ -15,19 +15,14 @@ extern "C" {
     pub fn sqlite3_transient() -> sqlite3_destructor_type;
 }
 
-/// Helper to translate a result code into a `Result`
+/// Gets the last error from the database as [`crate::error::Error`]
 ///
 /// # Safety
-/// This function operates on a raw SQLite handle. If `database` is not `NULL` but invalid or points to an invalid handle,
-/// the behaviour is undefined.
+/// This function operates on a raw SQLite handle. If `database` is not `NULL` but invalid or points to an invalid
+/// handle, the behaviour is undefined.
 #[doc(hidden)]
-pub unsafe fn sqlite3_check_result(retval: i32, database: *mut sqlite3) -> Result<(), crate::error::Error> {
+pub unsafe fn sqlite3_last_error(retval: i32, database: *mut sqlite3) -> crate::error::Error {
     use std::{borrow::Cow, ffi::CStr};
-
-    // Early-return on success
-    if retval == SQLITE_OK {
-        return Ok(());
-    }
 
     // Get the error string
     let error = sqlite3_errstr(retval);
@@ -43,7 +38,21 @@ pub unsafe fn sqlite3_check_result(retval: i32, database: *mut sqlite3) -> Resul
         let message_ = CStr::from_ptr(error).to_string_lossy();
         message = Cow::Owned(format!("{message} ({message_})"));
     }
-    Err(crate::err!("SQLite error: {message}"))
+    crate::err!("SQLite error: {message}")
+}
+
+/// Helper to translate a result code into a `Result`
+///
+/// # Safety
+/// This function operates on a raw SQLite handle. If `database` is not `NULL` but invalid or points to an invalid
+/// handle, the behaviour is undefined.
+#[doc(hidden)]
+#[inline]
+pub unsafe fn sqlite3_check_result(retval: i32, database: *mut sqlite3) -> Result<(), crate::error::Error> {
+    match retval {
+        SQLITE_OK => Ok(()),
+        _ => Err(sqlite3_last_error(retval, database)),
+    }
 }
 
 /// Asserts that sqlite is compiled threadsafe
