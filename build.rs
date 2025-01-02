@@ -1,6 +1,11 @@
 use cc::Build;
 
 fn main() {
+    // Rerun if one of the amalgamation files changed
+    println!("cargo:rerun-if-changed=dist/sqlite3.c");
+    println!("cargo:rerun-if-changed=dist/sqlite3.h");
+
+    // Build SQLite
     Build::new()
         .extra_warnings(true)
         // Recommended flags; see https://www.sqlite.org/compile.html
