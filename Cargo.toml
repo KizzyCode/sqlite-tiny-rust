@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-tiny"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 authors = ["KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>"]
 keywords = []
@@ -24,7 +24,7 @@ api = []
 [dependencies]
 
 [build-dependencies]
-cc = { version = "1.2.2", default-features = false }
+cc = { version = "1.2.6", default-features = false }
 
 [dev-dependencies]
 
