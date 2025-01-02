@@ -31,3 +31,10 @@ pub fn version() -> (i32, i32, i32) {
     let patch = version % 1000;
     (major, minor, patch)
 }
+
+/// Tests the version tuple
+#[test]
+fn assert_version() {
+    let version = version();
+    assert_eq!(version, (3, 47, 2), "Invalid SQLite version");
+}
