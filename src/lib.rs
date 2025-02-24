@@ -36,5 +36,5 @@ pub fn version() -> (i32, i32, i32) {
 #[test]
 fn assert_version() {
     let version = version();
-    assert_eq!(version, (3, 48, 0), "Invalid SQLite version");
+    assert_eq!(version, (3, 49, 1), "Invalid SQLite version");
 }
