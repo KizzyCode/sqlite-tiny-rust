@@ -1,4 +1,5 @@
 //! Implements the crate's error type
+#![cfg(feature = "api")]
 
 use std::backtrace::{Backtrace, BacktraceStatus};
 use std::fmt::{self, Display, Formatter};
