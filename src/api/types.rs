@@ -2,6 +2,7 @@
 
 use crate::err;
 use crate::error::Error;
+use std::sync::Arc;
 
 /// An SQLite convertible type
 #[derive(Debug, Clone, PartialEq)]
@@ -17,7 +18,8 @@ pub enum SqliteType {
     /// BLOB
     Blob(Vec<u8>),
 }
-// Custom conversions
+
+// Byte array conversions
 impl<const LEN: usize> TryInto<[u8; LEN]> for SqliteType {
     type Error = Error;
 
@@ -60,6 +62,7 @@ impl<const LEN: usize> TryFrom<Option<[u8; LEN]>> for SqliteType {
         }
     }
 }
+
 // Generic conversions
 macro_rules! impl_sqlitetype_conversion {
     (from: $variant:path => $type:ty) => {
@@ -113,6 +116,7 @@ macro_rules! impl_sqlitetype_conversion {
         impl_sqlitetype_conversion!(into: $type => $intermediate => $variant);
     };
 }
+// Integers
 impl_sqlitetype_conversion!(usize => i64 => SqliteType::Integer);
 impl_sqlitetype_conversion!(isize => i64 => SqliteType::Integer);
 impl_sqlitetype_conversion!(u128 => i64 => SqliteType::Integer);
@@ -125,9 +129,14 @@ impl_sqlitetype_conversion!(u16 => i64 => SqliteType::Integer);
 impl_sqlitetype_conversion!(i16 => i64 => SqliteType::Integer);
 impl_sqlitetype_conversion!(u8 => i64 => SqliteType::Integer);
 impl_sqlitetype_conversion!(i8 => i64 => SqliteType::Integer);
+// Floats
 impl_sqlitetype_conversion!(f64 => f64 => SqliteType::Real);
 impl_sqlitetype_conversion!(into: f32 => f64 => SqliteType::Real);
+// Strings
 impl_sqlitetype_conversion!(String => String => SqliteType::Text);
 impl_sqlitetype_conversion!(into: &str => String => SqliteType::Text);
+impl_sqlitetype_conversion!(from: SqliteType::Text => Arc<String>);
+// Bytes
 impl_sqlitetype_conversion!(Vec<u8> => Vec<u8> => SqliteType::Blob);
 impl_sqlitetype_conversion!(into: &[u8] => Vec<u8> => SqliteType::Blob);
+impl_sqlitetype_conversion!(from: SqliteType::Blob => Arc<Vec<u8>>);
