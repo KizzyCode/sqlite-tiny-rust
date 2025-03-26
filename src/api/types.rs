@@ -1,7 +1,7 @@
-//! Bridge types to help with C and SQLite data types
+//! Bridge types to help with SQLite data types
 
-use crate::{err, error::Error};
-use core::ffi::c_int;
+use crate::err;
+use crate::error::Error;
 
 /// An SQLite convertible type
 #[derive(Debug, Clone, PartialEq)]
@@ -17,6 +17,50 @@ pub enum SqliteType {
     /// BLOB
     Blob(Vec<u8>),
 }
+// Custom conversions
+impl<const LEN: usize> TryInto<[u8; LEN]> for SqliteType {
+    type Error = Error;
+
+    #[rustfmt::skip]
+    fn try_into(self) -> Result<[u8; LEN], Self::Error> {
+        match self {
+            SqliteType::Blob(value) => <[u8; LEN]>::try_from(value)
+                .map_err(|_| err!("Failed to convert from SQLite type")),
+            _ => Err(err!("Failed to convert from SQLite type")),
+        }
+    }
+}
+impl<const LEN: usize> TryInto<Option<[u8; LEN]>> for SqliteType {
+    type Error = Error;
+
+    #[rustfmt::skip]
+    fn try_into(self) -> Result<Option<[u8; LEN]>, Self::Error> {
+        match self {
+            Self::Null => Ok(None),
+            SqliteType::Blob(value) => <[u8; LEN]>::try_from(value).map(Some)
+                .map_err(|_| err!("Failed to convert from SQLite type")),
+            _ => Err(err!("Failed to convert from SQLite type")),
+        }
+    }
+}
+impl<const LEN: usize> TryFrom<[u8; LEN]> for SqliteType {
+    type Error = Error;
+
+    fn try_from(value: [u8; LEN]) -> Result<Self, Self::Error> {
+        Ok(SqliteType::Blob(value.into()))
+    }
+}
+impl<const LEN: usize> TryFrom<Option<[u8; LEN]>> for SqliteType {
+    type Error = Error;
+
+    fn try_from(value: Option<[u8; LEN]>) -> Result<Self, Self::Error> {
+        match value {
+            None => Ok(Self::Null),
+            Some(value) => Ok(SqliteType::Blob(value.into())),
+        }
+    }
+}
+// Generic conversions
 macro_rules! impl_sqlitetype_conversion {
     (from: $variant:path => $type:ty) => {
         impl TryInto<$type> for SqliteType {
@@ -25,7 +69,7 @@ macro_rules! impl_sqlitetype_conversion {
             fn try_into(self) -> Result<$type, Self::Error> {
                 match self {
                     $variant(value) => <$type>::try_from(value)
-                        .map_err(|e| err!(with: e, "Failed to from SQLite type")),
+                        .map_err(|e| err!(with: e, "Failed to convert from SQLite type")),
                     _ => Err(err!("Failed to convert from SQLite type"))
                 }
             }
@@ -36,8 +80,8 @@ macro_rules! impl_sqlitetype_conversion {
             fn try_into(self) -> Result<Option<$type>, Self::Error> {
                 match self {
                     Self::Null => Ok(None),
-                    $variant(value) => <$type>::try_from(value)
-                        .map(Some).map_err(|e| err!(with: e, "Failed to from SQLite type")),
+                    $variant(value) => <$type>::try_from(value).map(Some)
+                        .map_err(|e| err!(with: e, "Failed to convert from SQLite type")),
                     _ => Err(err!("Failed to convert from SQLite type"))
                 }
             }
@@ -48,8 +92,8 @@ macro_rules! impl_sqlitetype_conversion {
             type Error = Error;
 
             fn try_from(value: $type) -> Result<Self, Self::Error> {
-                <$intermediate>::try_from(value)
-                    .map($variant).map_err(|e| err!(with: e, "Failed to convert into SQLite type"))
+                <$intermediate>::try_from(value).map($variant)
+                    .map_err(|e| err!(with: e, "Failed to convert into SQLite type"))
             }
         }
         impl TryFrom<Option<$type>> for SqliteType {
@@ -58,8 +102,8 @@ macro_rules! impl_sqlitetype_conversion {
             fn try_from(value: Option<$type>) -> Result<Self, Self::Error> {
                 match value {
                     None => Ok(Self::Null),
-                    Some(value) => <$intermediate>::try_from(value)
-                        .map($variant).map_err(|e| err!(with: e, "Failed to convert into SQLite type")),
+                    Some(value) => <$intermediate>::try_from(value).map($variant)
+                        .map_err(|e| err!(with: e, "Failed to convert into SQLite type")),
                 }
             }
         }
@@ -87,51 +131,3 @@ impl_sqlitetype_conversion!(String => String => SqliteType::Text);
 impl_sqlitetype_conversion!(into: &str => String => SqliteType::Text);
 impl_sqlitetype_conversion!(Vec<u8> => Vec<u8> => SqliteType::Blob);
 impl_sqlitetype_conversion!(into: &[u8] => Vec<u8> => SqliteType::Blob);
-
-/// An "owned", mutable pointer
-#[derive(Debug)]
-pub struct PointerMut<T> {
-    /// The underlying raw pointer
-    ptr: *mut T,
-    /// An optional callback that is called on drop
-    on_drop: unsafe extern "C" fn(*mut T) -> c_int,
-}
-impl<T> PointerMut<T> {
-    /// Creates a new owned pointer
-    ///
-    /// # Panics
-    /// This function panics if the given pointer is `NULL`.
-    pub fn new(ptr: *mut T, on_drop: unsafe extern "C" fn(*mut T) -> c_int) -> Self {
-        assert!(!ptr.is_null(), "cannot create an owned NULL pointer");
-        Self { ptr, on_drop }
-    }
-
-    /// Returns the underlying pointer
-    pub const fn as_ptr(&self) -> *mut T {
-        self.ptr
-    }
-}
-impl<T> Drop for PointerMut<T> {
-    fn drop(&mut self) {
-        // Call the on-drop callback
-        unsafe { (self.on_drop)(self.ptr) };
-    }
-}
-
-/// A pointer with flexible ownership
-#[derive(Debug)]
-pub enum PointerMutFlex<'a, T> {
-    /// A borrowed pointer
-    Borrowed(&'a mut PointerMut<T>),
-    /// An owned pointer
-    Owned(PointerMut<T>),
-}
-impl<T> PointerMutFlex<'_, T> {
-    /// Returns the underlying pointer
-    pub const fn as_ptr(&self) -> *mut T {
-        match self {
-            PointerMutFlex::Borrowed(pointer_ref) => pointer_ref.as_ptr(),
-            PointerMutFlex::Owned(pointer_mut) => pointer_mut.as_ptr(),
-        }
-    }
-}

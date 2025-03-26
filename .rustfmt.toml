@@ -4,3 +4,8 @@ fn_params_layout = "Tall"
 use_small_heuristics = "Max"
 use_field_init_shorthand = true
 use_try_shorthand = true
+
+# Unstable args
+unstable_features = true
+group_imports = "One"
+imports_granularity = "Module"

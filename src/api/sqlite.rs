@@ -1,12 +1,12 @@
 //! An SQLite database handle
 
-use crate::{
-    api::{query::Query, types::PointerMut},
-    err,
-    error::Error,
-    ffi,
-};
-use std::{ffi::CString, ptr};
+use super::ffiext;
+use crate::api::ffiext::PointerMut;
+use crate::api::query::Query;
+use crate::error::Error;
+use crate::{err, ffi};
+use std::ffi::CString;
+use std::ptr;
 
 /// An SQLite database handle
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl Sqlite {
         // Open the database
         let flags = flags | ffi::SQLITE_OPEN_FULLMUTEX;
         let retval = unsafe { ffi::sqlite3_open_v2(path.as_ptr(), &mut database, flags, ptr::null()) };
-        unsafe { ffi::sqlite3_check_result(retval, ptr::null_mut()) }?;
+        unsafe { ffiext::sqlite3_check_result(retval, ptr::null_mut()) }?;
 
         // Init self
         let database = PointerMut::new(database, ffi::sqlite3_close_v2);
@@ -52,7 +52,7 @@ impl Sqlite {
         // Prepare statement and check result code
         let retval =
             unsafe { ffi::sqlite3_prepare_v2(self.raw.as_ptr(), query.as_ptr(), -1, &mut statement, ptr::null_mut()) };
-        unsafe { ffi::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
+        unsafe { ffiext::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
 
         // Init query
         let statement = PointerMut::new(statement, ffi::sqlite3_finalize);
@@ -65,7 +65,7 @@ impl Sqlite {
         let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
         let retval =
             unsafe { ffi::sqlite3_exec(self.raw.as_ptr(), query.as_ptr(), None, ptr::null_mut(), ptr::null_mut()) };
-        unsafe { ffi::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
+        unsafe { ffiext::sqlite3_check_result(retval, self.raw.as_ptr()) }?;
 
         // Apparently, the query was successful
         Ok(())

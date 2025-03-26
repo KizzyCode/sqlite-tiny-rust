@@ -1,11 +1,10 @@
 //! An SQLite query
 
-use crate::{
-    api::{answer::Answer, types::PointerMut, types::SqliteType},
-    err,
-    error::Error,
-    ffi, Sqlite,
-};
+use crate::api::answer::Answer;
+use crate::api::ffiext::{self, PointerMut};
+use crate::api::types::SqliteType;
+use crate::error::Error;
+use crate::{err, ffi, Sqlite};
 
 /// An SQLite query
 #[derive(Debug)]
@@ -40,17 +39,17 @@ impl<'db> Query<'db> {
     /// Binds a NULL value
     fn bind_null(&self, column: std::ffi::c_int) -> Result<(), Error> {
         let retval = unsafe { ffi::sqlite3_bind_null(self.raw.as_ptr(), column) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
+        unsafe { ffiext::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds an INTEGER value
     fn bind_integer(&self, column: std::ffi::c_int, value: i64) -> Result<(), Error> {
         let retval = unsafe { ffi::sqlite3_bind_int64(self.raw.as_ptr(), column, value) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
+        unsafe { ffiext::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a REAL value
     fn bind_real(&self, column: std::ffi::c_int, value: f64) -> Result<(), Error> {
         let retval = unsafe { ffi::sqlite3_bind_double(self.raw.as_ptr(), column, value) };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
+        unsafe { ffiext::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a TEXT value
     fn bind_text(&self, column: std::ffi::c_int, value: String) -> Result<(), Error> {
@@ -65,7 +64,7 @@ impl<'db> Query<'db> {
                 ffi::SQLITE_UTF8 as _,
             )
         };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
+        unsafe { ffiext::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
     /// Binds a BLOB value
     fn bind_blob(&self, column: std::ffi::c_int, value: Vec<u8>) -> Result<(), Error> {
@@ -79,7 +78,7 @@ impl<'db> Query<'db> {
                 ffi::sqlite3_transient(),
             )
         };
-        unsafe { ffi::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
+        unsafe { ffiext::sqlite3_check_result(retval, self.sqlite.raw.as_ptr()) }
     }
 
     /// Executes the query and gets the next result row if any

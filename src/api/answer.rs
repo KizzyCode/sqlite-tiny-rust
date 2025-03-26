@@ -1,14 +1,9 @@
 //! An SQLite query result
 
-use crate::{
-    api::{
-        row::Row,
-        types::{PointerMut, PointerMutFlex},
-    },
-    err,
-    error::Error,
-    ffi, Sqlite,
-};
+use crate::api::ffiext::{self, PointerMut, PointerMutFlex};
+use crate::api::row::Row;
+use crate::error::Error;
+use crate::{err, ffi, Sqlite};
 
 /// A query result
 #[derive(Debug)]
@@ -66,7 +61,7 @@ impl Answer<'_> {
         let retval = unsafe { ffi::sqlite3_step(self.raw.as_ptr()) };
         let true = matches!(retval, ffi::SQLITE_ROW | ffi::SQLITE_DONE) else {
             // Failed while trying to get the next row
-            return Err(unsafe { ffi::sqlite3_last_error(retval, self.sqlite.raw.as_ptr()) });
+            return Err(unsafe { ffiext::sqlite3_last_error(retval, self.sqlite.raw.as_ptr()) });
         };
 
         // Mark if we have a pending row

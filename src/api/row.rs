@@ -1,11 +1,9 @@
 //! An SQLite query result row
 
-use crate::{
-    api::{types::PointerMutFlex, types::SqliteType},
-    err,
-    error::Error,
-    ffi,
-};
+use crate::api::ffiext::PointerMutFlex;
+use crate::api::types::SqliteType;
+use crate::error::Error;
+use crate::{err, ffi};
 use std::ffi::CStr;
 
 /// An SQLite result row

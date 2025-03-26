@@ -7,52 +7,11 @@
 include!("bindgen.rs");
 
 // Glue bindings
-extern "C" {
+unsafe extern "C" {
     /// Internal helper to get the pointer constant to define "transient" ownership (i.e. order SQLite to copy the value
     /// immediately)
     //sqlite3_destructor_type sqlite3_transient()
-    #[doc(hidden)]
-    pub fn sqlite3_transient() -> sqlite3_destructor_type;
-}
-
-/// Gets the last error from the database as [`crate::error::Error`]
-///
-/// # Safety
-/// This function operates on a raw SQLite handle. If `database` is not `NULL` but invalid or points to an invalid
-/// handle, the behaviour is undefined.
-#[doc(hidden)]
-pub unsafe fn sqlite3_last_error(retval: i32, database: *mut sqlite3) -> crate::error::Error {
-    use std::{borrow::Cow, ffi::CStr};
-
-    // Get the error string
-    let error = sqlite3_errstr(retval);
-    let mut message = match error.is_null() {
-        true => Cow::Borrowed("Unknown"),
-        false => CStr::from_ptr(error).to_string_lossy(),
-    };
-
-    // Append database specific error
-    if !database.is_null() {
-        // Get error from database
-        let error = sqlite3_errmsg(database);
-        let message_ = CStr::from_ptr(error).to_string_lossy();
-        message = Cow::Owned(format!("{message} ({message_})"));
-    }
-    crate::err!("SQLite error: {message}")
-}
-
-/// Helper to translate a result code into a `Result`
-///
-/// # Safety
-/// This function operates on a raw SQLite handle. If `database` is not `NULL` but invalid or points to an invalid
-/// handle, the behaviour is undefined.
-#[doc(hidden)]
-#[inline]
-pub unsafe fn sqlite3_check_result(retval: i32, database: *mut sqlite3) -> Result<(), crate::error::Error> {
-    match retval {
-        SQLITE_OK => Ok(()),
-        _ => Err(sqlite3_last_error(retval, database)),
-    }
+    pub unsafe fn sqlite3_transient() -> sqlite3_destructor_type;
 }
 
 /// Asserts that sqlite is compiled threadsafe

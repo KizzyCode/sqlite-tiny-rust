@@ -1,9 +1,7 @@
 //! Implements the crate's error type
 
-use std::{
-    backtrace::{Backtrace, BacktraceStatus},
-    fmt::{self, Display, Formatter},
-};
+use std::backtrace::{Backtrace, BacktraceStatus};
+use std::fmt::{self, Display, Formatter};
 
 /// Creates a new error
 #[macro_export]
