@@ -25,6 +25,6 @@ Some locations where we do this are (non-exhaustive):
 - Reading values: To avoid lifetime troubles, we always copy a value from a row/column out of the SQLite context into 
   Rust-managed memory immediately on access
 
-## Distriuted SQLite Version
+## Distributed SQLite Version
 For simplicity, this crate does not link to external SQLite versions, but exclusively builds and embeds the amalgamation
 in the [`dist`-folder](dist/). For more information see [`dist/README.md`](dist/README.md).
