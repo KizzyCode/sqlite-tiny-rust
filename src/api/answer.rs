@@ -36,7 +36,7 @@ impl Answer<'_> {
     }
 
     /// Returns the next row like a fallible iterator
-    pub fn next_row(&mut self) -> Result<Option<Row>, Error> {
+    pub fn next_row<'a>(&'a mut self) -> Result<Option<Row<'a>>, Error> {
         // Try to fetch the next row if necessary
         if !self.has_row {
             // Do a step to get the next row if any

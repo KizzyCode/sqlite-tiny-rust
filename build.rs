@@ -8,6 +8,9 @@ fn main() {
     // Build SQLite
     Build::new()
         .extra_warnings(true)
+        .warnings_into_errors(true)
+        // SQLite has some function with unused parameters in some configurations
+        .flag("-Wno-unused-parameter")
         // Recommended flags; see https://www.sqlite.org/compile.html
         .flag("-DSQLITE_DQS=0")
         .flag("-DSQLITE_DEFAULT_MEMSTATUS=0")

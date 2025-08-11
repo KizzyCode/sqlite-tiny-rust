@@ -44,7 +44,7 @@ impl Sqlite {
     }
 
     /// Creates a new query from a **single** SQL statement
-    pub fn query(&self, query: &str) -> Result<Query, Error> {
+    pub fn query<'a>(&'a self, query: &str) -> Result<Query<'a>, Error> {
         // Prepare query and statement pointer
         let query = CString::new(query).map_err(|e| err!(with: e, "Invalid database query"))?;
         let mut statement = ptr::null_mut();
