@@ -6,22 +6,26 @@ fn main() {
     println!("cargo:rerun-if-changed=dist/sqlite3.h");
 
     // Build SQLite
-    Build::new()
-        .extra_warnings(true)
-        .warnings_into_errors(true)
-        // SQLite has some function with unused parameters in some configurations
-        .flag_if_supported("-Wno-unused-parameter")
-        .flag_if_supported("/wd4100")
-        // Recommended flags; see https://www.sqlite.org/compile.html
-        .flag("-DSQLITE_DQS=0")
-        .flag("-DSQLITE_DEFAULT_MEMSTATUS=0")
-        .flag("-DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1")
-        .flag("-DSQLITE_OMIT_DEPRECATED=1")
-        .flag("-DSQLITE_OMIT_SHARED_CACHE=1")
-        .flag("-DSQLITE_STRICT_SUBTYPE=1")
-        // Build lib
-        .include("dist/")
-        .file("dist/sqlite3.c")
-        .file("src/ffi/glue.c")
-        .compile("libsqlite3.a");
+    let mut builder = Build::new();
+    builder.extra_warnings(true);
+
+    // SQLite causes some warnings in some configurations
+    #[cfg(feature = "sqlite-warningsintoerrors")]
+    builder.warnings_into_errors(true);
+
+    // Recommended flags; see https://www.sqlite.org/compile.html
+    builder.flag("-DSQLITE_DQS=0");
+    builder.flag("-DSQLITE_DEFAULT_MEMSTATUS=0");
+    builder.flag("-DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1");
+    builder.flag("-DSQLITE_OMIT_DEPRECATED=1");
+    builder.flag("-DSQLITE_OMIT_SHARED_CACHE=1");
+    builder.flag("-DSQLITE_STRICT_SUBTYPE=1");
+
+    // Register source files
+    builder.include("dist/");
+    builder.file("dist/sqlite3.c");
+    builder.file("src/ffi/glue.c");
+
+    // Compile static library
+    builder.compile("libsqlite3.a");
 }

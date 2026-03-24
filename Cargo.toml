@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-tiny"
-version = "0.7.5"
+version = "0.7.6"
 edition = "2021"
 authors = ["KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>"]
 keywords = []
@@ -19,12 +19,13 @@ appveyor = { repository = "KizzyCode/sqlite-tiny-rust" }
 [features]
 default = ["api"]
 api = []
+sqlite-warningsintoerrors = []
 
 
 [dependencies]
 
 [build-dependencies]
-cc = { version = "1.2.32", default-features = false }
+cc = { version = "1.2.57", default-features = false }
 
 [dev-dependencies]
 
