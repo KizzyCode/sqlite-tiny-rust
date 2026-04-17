@@ -21,6 +21,19 @@ fn main() {
     builder.flag("-DSQLITE_OMIT_SHARED_CACHE=1");
     builder.flag("-DSQLITE_STRICT_SUBTYPE=1");
 
+    // Opinionated feature set
+    builder.flag("-DSQLITE_ENABLE_API_ARMOR=1");
+    builder.flag("-DSQLITE_ENABLE_FTS3=1");
+    builder.flag("-DSQLITE_ENABLE_FTS3_PARENTHESIS=1");
+    builder.flag("-DSQLITE_ENABLE_FTS4=1");
+    builder.flag("-DSQLITE_ENABLE_FTS5=1");
+    builder.flag("-DSQLITE_ENABLE_MATH_FUNCTIONS=1");
+    builder.flag("-DSQLITE_ENABLE_ORDERED_SET_AGGREGATES=1");
+    builder.flag("-DSQLITE_ENABLE_PERCENTILE=1");
+    builder.flag("-DSQLITE_ENABLE_RTREE=1");
+    builder.flag("-DSQLITE_ENABLE_UPDATE_DELETE_LIMIT=1");
+    builder.flag("-DSQLITE_SOUNDEX=1");
+
     // Register source files
     builder.include("dist/");
     builder.file("dist/sqlite3.c");

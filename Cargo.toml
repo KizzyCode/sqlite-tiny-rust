@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-tiny"
-version = "0.7.7"
+version = "0.7.8"
 edition = "2021"
 authors = ["KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>"]
 keywords = []
@@ -24,8 +24,9 @@ sqlite-warningsintoerrors = []
 
 [dependencies]
 
-[build-dependencies]
-cc = { version = "1.2.57", default-features = false }
+[build-dependencies.'cc']
+version = "1.2.60"
+default-features = false
 
 [dev-dependencies]
 
